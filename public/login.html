@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KMJ TIPS — Admin Login</title>
+<link rel="stylesheet" href="/assets/style.css">
+<script>
+try {
+  if (localStorage.getItem('kmj_theme') === 'dark' ||
+      (!localStorage.getItem('kmj_theme') && matchMedia('(prefers-color-scheme: dark)').matches))
+    document.documentElement.setAttribute('data-theme', 'dark');
+} catch (e) {}
+</script>
+</head>
+<body>
+<div class="login-wrap">
+  <div class="login-card glass">
+    <div class="logo">K</div>
+    <h1>KMJ TIPS</h1>
+    <div class="tag">ADMIN PANEL</div>
+
+    <form id="loginForm">
+      <label for="username">Username</label>
+      <input id="username" autocomplete="username" required>
+      <label for="password">Password</label>
+      <input id="password" type="password" autocomplete="current-password" required>
+      <button class="btn" type="submit" id="loginBtn">Sign In</button>
+    </form>
+
+    <form id="setupForm" style="display:none">
+      <p style="color:var(--muted);font-size:13px">First run — create the admin account.</p>
+      <label for="su">Username</label>
+      <input id="su" required>
+      <label for="sp">Password</label>
+      <input id="sp" type="password" required>
+      <button class="btn" type="submit" id="setupBtn">Create Admin</button>
+    </form>
+
+    <button class="link-btn" id="toggleSetup">First run? Create admin account</button>
+    <div style="margin-top:14px">
+      <button class="icon-btn" id="themeBtn" title="Toggle theme">🌙</button>
+    </div>
+  </div>
+</div>
+<div class="toast-stack" id="toasts"></div>
+<script>
+const $ = (id) => document.getElementById(id);
+function toast(msg, type) {
+  const t = document.createElement('div');
+  t.className = 'toast ' + (type || '');
+  t.textContent = msg;
+  $('toasts').appendChild(t);
+  setTimeout(() => { t.style.opacity = '0'; t.style.transition = 'opacity .3s'; setTimeout(() => t.remove(), 320); }, 3200);
+}
+$('themeBtn').onclick = () => {
+  const d = document.documentElement.getAttribute('data-theme') === 'dark';
+  document.documentElement.setAttribute('data-theme', d ? '' : 'dark');
+  try { localStorage.setItem('kmj_theme', d ? 'light' : 'dark'); } catch (e) {}
+  $('themeBtn').textContent = d ? '🌙' : '☀️';
+};
+try { if (localStorage.getItem('kmj_theme') === 'dark') $('themeBtn').textContent = '☀️'; } catch (e) {}
+$('toggleSetup').onclick = () => {
+  const s = $('setupForm'), l = $('loginForm');
+  const show = s.style.display === 'none';
+  s.style.display = show ? 'block' : 'none';
+  l.style.display = show ? 'none' : 'block';
+  $('toggleSetup').textContent = show ? 'Back to login' : 'First run? Create admin account';
+};
+$('loginForm').onsubmit = async (e) => {
+  e.preventDefault();
+  const btn = $('loginBtn'); btn.disabled = true;
+  try {
+    const r = await fetch('/api/admin/login', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: $('username').value, password: $('password').value })
+    });
+    const j = await r.json();
+    if (!j.ok) throw new Error(j.error || 'Login failed');
+    sessionStorage.setItem('kmj_token', j.token);
+    sessionStorage.setItem('kmj_user', j.username);
+    location.href = '/';
+  } catch (err) { toast(err.message, 'err'); btn.disabled = false; }
+};
+$('setupForm').onsubmit = async (e) => {
+  e.preventDefault();
+  const btn = $('setupBtn'); btn.disabled = true;
+  try {
+    const r = await fetch('/api/admin/setup', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: $('su').value, password: $('sp').value })
+    });
+    const j = await r.json();
+    if (!j.ok) throw new Error(j.error || 'Setup failed');
+    toast('Admin created — please sign in', 'ok');
+    $('toggleSetup').click();
+  } catch (err) { toast(err.message, 'err'); btn.disabled = false; }
+};
+</script>
+</body>
+</html>
